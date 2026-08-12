@@ -1,0 +1,13 @@
+build/
+build-*/
+cmake-build-*/
+*.o
+*.obj
+*.so
+*.a
+*.exe
+*.out
+compile_commands.json
+.cache/
+*.swp
+*~

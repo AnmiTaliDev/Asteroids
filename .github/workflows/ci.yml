@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-linux:
+    name: Build on Linux (${{ matrix.build_type }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libpulse-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libwayland-dev libdecor-0-dev libudev-dev pkg-config
+
+      - name: Fetch and build SDL3
+        run: |
+          git clone --depth 1 --branch release-3.4.14 https://github.com/libsdl-org/SDL.git /tmp/SDL3
+          cmake -S /tmp/SDL3 -B /tmp/SDL3/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF
+          cmake --build /tmp/SDL3/build
+          cmake --install /tmp/SDL3/build
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_PREFIX_PATH=/tmp/sdl3-install \
+            -DASTEROIDS_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Verify binary exists
+        run: test -x build/src/asteroids
+
+      - name: Smoke test (headless)
+        run: |
+          export LD_LIBRARY_PATH=/tmp/sdl3-install/lib:$LD_LIBRARY_PATH
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 3 ./build/src/asteroids || test $? -eq 124
+
+  static-analysis:
+    name: Static analysis (cppcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck --std=c17 --language=c --error-exitcode=1 \
+            --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            -I src src
