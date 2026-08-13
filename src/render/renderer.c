@@ -6,6 +6,18 @@
 #include <string.h>
 
 #define GLYPH_SPACING_FACTOR 0.35f
+#define LINE_JOINT_OVERLAP 0.5f
+
+static void draw_line_with_overlap(SDL_Renderer *sdl_renderer, Vec2 a, Vec2 b) {
+    Vec2 direction = vec2_sub(b, a);
+    float length = vec2_length(direction);
+    if (length > 1e-6f) {
+        Vec2 extend = vec2_scale(direction, LINE_JOINT_OVERLAP / length);
+        a = vec2_sub(a, extend);
+        b = vec2_add(b, extend);
+    }
+    SDL_RenderLine(sdl_renderer, a.x, a.y, b.x, b.y);
+}
 
 bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title) {
     memset(renderer, 0, sizeof(*renderer));
@@ -102,7 +114,7 @@ void renderer_draw_shape(Renderer *renderer, Vec2 center, float rotation, float 
         a = vec2_add(center, vec2_rotate(vec2_scale(a, scale), rotation));
         b = vec2_add(center, vec2_rotate(vec2_scale(b, scale), rotation));
 
-        SDL_RenderLine(renderer->sdl_renderer, a.x, a.y, b.x, b.y);
+        draw_line_with_overlap(renderer->sdl_renderer, a, b);
     }
 }
 
@@ -127,7 +139,7 @@ void renderer_draw_text(Renderer *renderer, Vec2 top_left, float glyph_width, fl
                                                     segments[i].from.y * glyph_height));
             Vec2 b = vec2_add(top_left, vec2_make(cursor_x - top_left.x + segments[i].to.x * glyph_width,
                                                     segments[i].to.y * glyph_height));
-            SDL_RenderLine(renderer->sdl_renderer, a.x, a.y, b.x, b.y);
+            draw_line_with_overlap(renderer->sdl_renderer, a, b);
         }
 
         cursor_x += glyph_width + spacing;
