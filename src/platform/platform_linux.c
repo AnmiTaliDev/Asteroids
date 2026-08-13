@@ -12,6 +12,11 @@
 #include <unistd.h>
 #include <limits.h>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
+
 static void join_path(char *out, size_t out_size, const char *base, const char *suffix) {
     snprintf(out, out_size, "%s/%s", base, suffix);
 }
@@ -134,3 +139,7 @@ bool platform_init_paths(PlatformPaths *out_paths, const char *argv0) {
     snprintf(out_paths->asset_dir, sizeof(out_paths->asset_dir), "assets");
     return true;
 }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
