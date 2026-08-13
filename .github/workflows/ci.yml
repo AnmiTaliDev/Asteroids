@@ -26,7 +26,8 @@ jobs:
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
             libxfixes-dev libxss-dev libxtst-dev libxkbcommon-dev \
             libwayland-dev libdecor-0-dev libudev-dev libdbus-1-dev \
-            libgl1-mesa-dev libegl1-mesa-dev libdrm-dev libgbm-dev pkg-config
+            libgl1-mesa-dev libegl1-mesa-dev libdrm-dev libgbm-dev \
+            libfreetype-dev pkg-config
 
       - name: Fetch and build SDL3
         run: |
@@ -37,6 +38,17 @@ jobs:
             -DSDL_SHARED=ON -DSDL_STATIC=OFF
           cmake --build /tmp/SDL3/build
           cmake --install /tmp/SDL3/build
+
+      - name: Fetch and build SDL3_ttf
+        run: |
+          git clone --depth 1 --branch release-3.2.2 https://github.com/libsdl-org/SDL_ttf.git /tmp/SDL3_ttf
+          cmake -S /tmp/SDL3_ttf -B /tmp/SDL3_ttf/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/tmp/sdl3-install \
+            -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install \
+            -DSDLTTF_VENDORED=OFF -DSDLTTF_HARFBUZZ=OFF -DSDLTTF_PLUTOSVG=OFF
+          cmake --build /tmp/SDL3_ttf/build
+          cmake --install /tmp/SDL3_ttf/build
 
       - name: Configure
         run: |
