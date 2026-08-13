@@ -147,7 +147,7 @@ static void touch_clear(ActiveTouch *touches, SDL_FingerID id) {
 
 static void draw_button(Renderer *renderer, UiButton button, const char *label, RendererColor color) {
     renderer_draw_rect_outline(renderer, button.center, button.half_width, button.half_height, color);
-    renderer_draw_text_centered(renderer, button.center, 12.0f, 18.0f, label, color);
+    renderer_draw_text_centered(renderer, button.center, 18.0f, label, color);
 }
 
 static void draw_ship(Renderer *renderer, const Ship *ship) {
@@ -173,29 +173,29 @@ static void draw_hud(Renderer *renderer, const GameContext *ctx) {
     char buffer[64];
 
     snprintf(buffer, sizeof(buffer), "SCORE %u", ctx->score);
-    renderer_draw_text(renderer, vec2_make(20.0f, 16.0f), 14.0f, 20.0f, buffer, COLOR_WHITE);
+    renderer_draw_text(renderer, vec2_make(20.0f, 16.0f), 20.0f, buffer, COLOR_WHITE);
 
     snprintf(buffer, sizeof(buffer), "LIVES %d", ctx->lives < 0 ? 0 : ctx->lives);
-    renderer_draw_text(renderer, vec2_make(20.0f, 44.0f), 14.0f, 20.0f, buffer, COLOR_DIM);
+    renderer_draw_text(renderer, vec2_make(20.0f, 44.0f), 20.0f, buffer, COLOR_DIM);
 
     snprintf(buffer, sizeof(buffer), "WAVE %d", ctx->wave_number);
-    renderer_draw_text(renderer, vec2_make(20.0f, 72.0f), 14.0f, 20.0f, buffer, COLOR_DIM);
+    renderer_draw_text(renderer, vec2_make(20.0f, 72.0f), 20.0f, buffer, COLOR_DIM);
 }
 
 static void draw_centered_message(Renderer *renderer, float world_width, float world_height,
                                    const char *line1, const char *line2) {
     Vec2 center1 = vec2_make(world_width * 0.5f, world_height * 0.5f - 20.0f);
     Vec2 center2 = vec2_make(world_width * 0.5f, world_height * 0.5f + 24.0f);
-    renderer_draw_text_centered(renderer, center1, 20.0f, 28.0f, line1, COLOR_WHITE);
+    renderer_draw_text_centered(renderer, center1, 28.0f, line1, COLOR_WHITE);
     if (line2 != NULL) {
-        renderer_draw_text_centered(renderer, center2, 12.0f, 18.0f, line2, COLOR_DIM);
+        renderer_draw_text_centered(renderer, center2, 18.0f, line2, COLOR_DIM);
     }
 }
 
 static void draw_settings_screen(Renderer *renderer, float world_width, float world_height,
                                   const SaveData *save, int selected_index) {
     Vec2 center = vec2_make(world_width * 0.5f, world_height * 0.5f - 140.0f);
-    renderer_draw_text_centered(renderer, center, 22.0f, 30.0f, "OPTIONS", COLOR_WHITE);
+    renderer_draw_text_centered(renderer, center, 30.0f, "OPTIONS", COLOR_WHITE);
 
     char lines[SETTINGS_ITEM_COUNT][64];
     snprintf(lines[SETTINGS_ITEM_MASTER_VOLUME], sizeof(lines[0]), "MASTER VOLUME: %d",
@@ -216,11 +216,11 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
         UiButton row = settings_row_button(i, world_width, world_height);
         RendererColor color = i == selected_index ? COLOR_WHITE : COLOR_DIM;
         renderer_draw_rect_outline(renderer, row.center, row.half_width, row.half_height, color);
-        renderer_draw_text_centered(renderer, row.center, 14.0f, 20.0f, lines[i], color);
+        renderer_draw_text_centered(renderer, row.center, 20.0f, lines[i], color);
     }
 
     Vec2 hint_center = vec2_make(world_width * 0.5f, world_height * 0.5f + 160.0f);
-    renderer_draw_text_centered(renderer, hint_center, 10.0f, 14.0f, "ESC TO RETURN", COLOR_DIM);
+    renderer_draw_text_centered(renderer, hint_center, 14.0f, "ESC TO RETURN", COLOR_DIM);
 }
 
 static void adjust_settings_item(int selected_index, int direction, SaveData *save,
@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
     config.fullscreen = save.fullscreen != 0;
 
     Renderer renderer;
-    if (!renderer_init(&renderer, &config, GAME_TITLE)) {
+    if (!renderer_init(&renderer, &config, GAME_TITLE, paths.asset_dir)) {
         SDL_Quit();
         return 1;
     }
@@ -552,12 +552,12 @@ int main(int argc, char **argv) {
             draw_settings_screen(&renderer, game.world_width, game.world_height, &save, settings_selected_index);
         } else if (game.phase == GAME_PHASE_MENU) {
             Vec2 title_center = vec2_make(game.world_width * 0.5f, game.world_height * 0.5f - 100.0f);
-            renderer_draw_text_centered(&renderer, title_center, 22.0f, 30.0f, "ASTEROIDS", COLOR_WHITE);
+            renderer_draw_text_centered(&renderer, title_center, 30.0f, "ASTEROIDS", COLOR_WHITE);
 
             char high_score_line[64];
             snprintf(high_score_line, sizeof(high_score_line), "HIGH SCORE %u", save.high_scores[0].score);
             renderer_draw_text_centered(&renderer, vec2_make(game.world_width * 0.5f, game.world_height * 0.5f - 40.0f),
-                                         12.0f, 18.0f, high_score_line, COLOR_DIM);
+                                         18.0f, high_score_line, COLOR_DIM);
 
             draw_button(&renderer, menu_start_button(game.world_width, game.world_height), "START", COLOR_WHITE);
             draw_button(&renderer, menu_options_button(game.world_width, game.world_height), "OPTIONS", COLOR_DIM);
@@ -618,7 +618,7 @@ int main(int argc, char **argv) {
                 renderer_draw_circle_outline(&renderer, knob_center, JOYSTICK_KNOB_RADIUS, COLOR_WHITE);
 
                 renderer_draw_circle_outline(&renderer, fire.center, fire.radius, COLOR_DIM);
-                renderer_draw_text_centered(&renderer, fire.center, 14.0f, 20.0f, "FIRE", COLOR_DIM);
+                renderer_draw_text_centered(&renderer, fire.center, 20.0f, "FIRE", COLOR_DIM);
             }
 #endif
 
@@ -639,7 +639,7 @@ int main(int argc, char **argv) {
             char debug_line[64];
             snprintf(debug_line, sizeof(debug_line), "FPS %d ASTEROIDS %d",
                      dt > 0.0f ? (int)(1.0f / dt) : 0, game_asteroids_remaining(&game));
-            renderer_draw_text(&renderer, vec2_make(game.world_width - 320.0f, 16.0f), 10.0f, 14.0f, debug_line, COLOR_DEBUG);
+            renderer_draw_text(&renderer, vec2_make(game.world_width - 320.0f, 16.0f), 14.0f, debug_line, COLOR_DEBUG);
         }
 
         renderer_end_frame(&renderer);

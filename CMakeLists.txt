@@ -29,6 +29,9 @@ option(ASTEROIDS_BUILD_TESTS "Build the unit test suite" OFF)
 if(NOT TARGET SDL3::SDL3)
     find_package(SDL3 REQUIRED CONFIG)
 endif()
+if(NOT TARGET SDL3_ttf::SDL3_ttf)
+    find_package(SDL3_ttf REQUIRED CONFIG)
+endif()
 
 add_library(asteroids_compiler_flags INTERFACE)
 target_compile_options(asteroids_compiler_flags INTERFACE

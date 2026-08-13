@@ -1,12 +1,12 @@
 #include "renderer.h"
 
-#include "vector_font.h"
 #include "../core/rng.h"
 
 #include <string.h>
+#include <stdio.h>
 
-#define GLYPH_SPACING_FACTOR 0.35f
 #define LINE_JOINT_OVERLAP 0.5f
+#define FONT_FILE_NAME "PressStart2P-Regular.ttf"
 
 static void draw_line_with_overlap(SDL_Renderer *sdl_renderer, Vec2 a, Vec2 b) {
     Vec2 direction = vec2_sub(b, a);
@@ -19,8 +19,13 @@ static void draw_line_with_overlap(SDL_Renderer *sdl_renderer, Vec2 a, Vec2 b) {
     SDL_RenderLine(sdl_renderer, a.x, a.y, b.x, b.y);
 }
 
-bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title) {
+bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title, const char *asset_dir) {
     memset(renderer, 0, sizeof(*renderer));
+
+    if (!TTF_Init()) {
+        SDL_Log("Failed to init SDL_ttf: %s", SDL_GetError());
+        return false;
+    }
 
 #ifdef SDL_PLATFORM_ANDROID
     SDL_WindowFlags flags = SDL_WINDOW_FULLSCREEN;
@@ -48,6 +53,22 @@ bool renderer_init(Renderer *renderer, const GameConfig *config, const char *tit
     SDL_SetRenderVSync(renderer->sdl_renderer, config->vsync ? 1 : 0);
     SDL_SetRenderDrawBlendMode(renderer->sdl_renderer, SDL_BLENDMODE_BLEND);
 
+    char font_path[1024];
+    if (asset_dir[0] == '\0') {
+        snprintf(font_path, sizeof(font_path), "fonts/%s", FONT_FILE_NAME);
+    } else {
+        snprintf(font_path, sizeof(font_path), "%s/fonts/%s", asset_dir, FONT_FILE_NAME);
+    }
+    renderer->font = TTF_OpenFont(font_path, 24.0f);
+    if (renderer->font == NULL) {
+        SDL_Log("Failed to load font '%s': %s", font_path, SDL_GetError());
+        SDL_DestroyRenderer(renderer->sdl_renderer);
+        SDL_DestroyWindow(renderer->window);
+        renderer->sdl_renderer = NULL;
+        renderer->window = NULL;
+        return false;
+    }
+
     renderer->width = config->window_width;
     renderer->height = config->window_height;
 
@@ -58,6 +79,10 @@ bool renderer_init(Renderer *renderer, const GameConfig *config, const char *tit
 }
 
 void renderer_shutdown(Renderer *renderer) {
+    if (renderer->font != NULL) {
+        TTF_CloseFont(renderer->font);
+        renderer->font = NULL;
+    }
     if (renderer->sdl_renderer != NULL) {
         SDL_DestroyRenderer(renderer->sdl_renderer);
         renderer->sdl_renderer = NULL;
@@ -66,6 +91,7 @@ void renderer_shutdown(Renderer *renderer) {
         SDL_DestroyWindow(renderer->window);
         renderer->window = NULL;
     }
+    TTF_Quit();
 }
 
 void renderer_generate_starfield(Renderer *renderer, unsigned int seed) {
@@ -144,33 +170,43 @@ void renderer_draw_rect_outline(Renderer *renderer, Vec2 center, float half_widt
     renderer_draw_shape(renderer, center, 0.0f, 1.0f, points, 4, true, color);
 }
 
-void renderer_draw_text(Renderer *renderer, Vec2 top_left, float glyph_width, float glyph_height,
+void renderer_draw_text(Renderer *renderer, Vec2 top_left, float pixel_height,
                          const char *text, RendererColor color) {
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, color.r, color.g, color.b, color.a);
-
-    float spacing = glyph_width * GLYPH_SPACING_FACTOR;
-    float cursor_x = top_left.x;
-
-    for (const char *c = text; *c != '\0'; c++) {
-        const GlyphSegment *segments = NULL;
-        int count = vector_font_get_glyph(*c, &segments);
-
-        for (int i = 0; i < count; i++) {
-            Vec2 a = vec2_add(top_left, vec2_make(cursor_x - top_left.x + segments[i].from.x * glyph_width,
-                                                    segments[i].from.y * glyph_height));
-            Vec2 b = vec2_add(top_left, vec2_make(cursor_x - top_left.x + segments[i].to.x * glyph_width,
-                                                    segments[i].to.y * glyph_height));
-            draw_line_with_overlap(renderer->sdl_renderer, a, b);
-        }
-
-        cursor_x += glyph_width + spacing;
+    if (text[0] == '\0') {
+        return;
     }
+
+    TTF_SetFontSize(renderer->font, pixel_height);
+
+    SDL_Color sdl_color = {color.r, color.g, color.b, color.a};
+    SDL_Surface *surface = TTF_RenderText_Blended(renderer->font, text, 0, sdl_color);
+    if (surface == NULL) {
+        return;
+    }
+
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer->sdl_renderer, surface);
+    if (texture != NULL) {
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+        SDL_FRect destination = {top_left.x, top_left.y, (float)surface->w, (float)surface->h};
+        SDL_RenderTexture(renderer->sdl_renderer, texture, NULL, &destination);
+        SDL_DestroyTexture(texture);
+    }
+
+    SDL_DestroySurface(surface);
 }
 
-void renderer_draw_text_centered(Renderer *renderer, Vec2 center, float glyph_width, float glyph_height,
+void renderer_draw_text_centered(Renderer *renderer, Vec2 center, float pixel_height,
                                   const char *text, RendererColor color) {
-    float spacing = glyph_width * GLYPH_SPACING_FACTOR;
-    float width = vector_font_text_width(text, glyph_width, spacing);
-    Vec2 top_left = vec2_make(center.x - width * 0.5f, center.y - glyph_height * 0.5f);
-    renderer_draw_text(renderer, top_left, glyph_width, glyph_height, text, color);
+    if (text[0] == '\0') {
+        return;
+    }
+
+    TTF_SetFontSize(renderer->font, pixel_height);
+
+    int width = 0;
+    int height = 0;
+    TTF_GetStringSize(renderer->font, text, 0, &width, &height);
+
+    Vec2 top_left = vec2_make(center.x - (float)width * 0.5f, center.y - (float)height * 0.5f);
+    renderer_draw_text(renderer, top_left, pixel_height, text, color);
 }

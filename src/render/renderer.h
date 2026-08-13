@@ -2,6 +2,7 @@
 #define ASTEROIDS_RENDER_RENDERER_H
 
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <stdbool.h>
 
 #include "../core/vec2.h"
@@ -19,6 +20,7 @@ typedef struct RendererColor {
 typedef struct Renderer {
     SDL_Window *window;
     SDL_Renderer *sdl_renderer;
+    TTF_Font *font;
     int width;
     int height;
     Vec2 stars[RENDERER_MAX_STARS];
@@ -26,7 +28,7 @@ typedef struct Renderer {
     int star_count;
 } Renderer;
 
-bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title);
+bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title, const char *asset_dir);
 void renderer_shutdown(Renderer *renderer);
 void renderer_generate_starfield(Renderer *renderer, unsigned int seed);
 
@@ -40,9 +42,9 @@ void renderer_draw_point(Renderer *renderer, Vec2 position, RendererColor color)
 void renderer_draw_circle_outline(Renderer *renderer, Vec2 center, float radius, RendererColor color);
 void renderer_draw_rect_outline(Renderer *renderer, Vec2 center, float half_width, float half_height,
                                  RendererColor color);
-void renderer_draw_text(Renderer *renderer, Vec2 top_left, float glyph_width, float glyph_height,
+void renderer_draw_text(Renderer *renderer, Vec2 top_left, float pixel_height,
                          const char *text, RendererColor color);
-void renderer_draw_text_centered(Renderer *renderer, Vec2 center, float glyph_width, float glyph_height,
+void renderer_draw_text_centered(Renderer *renderer, Vec2 center, float pixel_height,
                                   const char *text, RendererColor color);
 
 #endif

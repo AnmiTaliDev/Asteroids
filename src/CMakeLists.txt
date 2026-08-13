@@ -23,8 +23,6 @@ set(ASTEROIDS_SOURCES
     game/game.c
     render/renderer.h
     render/renderer.c
-    render/vector_font.h
-    render/vector_font.c
     audio/audio.h
     audio/audio.c
 )
@@ -41,7 +39,7 @@ target_include_directories(${ASTEROIDS_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOUR
 
 find_library(ASTEROIDS_MATH_LIBRARY m)
 
-target_link_libraries(${ASTEROIDS_TARGET_NAME} PRIVATE SDL3::SDL3 asteroids_compiler_flags)
+target_link_libraries(${ASTEROIDS_TARGET_NAME} PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf asteroids_compiler_flags)
 if(ASTEROIDS_MATH_LIBRARY)
     target_link_libraries(${ASTEROIDS_TARGET_NAME} PRIVATE ${ASTEROIDS_MATH_LIBRARY})
 endif()
