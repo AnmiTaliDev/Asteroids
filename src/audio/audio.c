@@ -15,7 +15,11 @@ static const char *SOUND_FILE_NAMES[SOUND_COUNT] = {
 
 static bool load_clip(SoundClip *clip, const char *asset_dir, const char *file_name) {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/sounds/%s", asset_dir, file_name);
+    if (asset_dir[0] == '\0') {
+        snprintf(path, sizeof(path), "sounds/%s", file_name);
+    } else {
+        snprintf(path, sizeof(path), "%s/sounds/%s", asset_dir, file_name);
+    }
 
     if (!SDL_LoadWAV(path, &clip->spec, &clip->buffer, &clip->length)) {
         SDL_Log("Failed to load sound '%s': %s", path, SDL_GetError());
