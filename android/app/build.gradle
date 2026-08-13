@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "org.anmitalidev.asteroids"
+    namespace = "dev.anmitali.asteriods"
     compileSdkVersion 35
     ndkVersion = "28.2.13676358"
     defaultConfig {
-        applicationId = "org.anmitalidev.asteroids"
+        applicationId = "dev.anmitali.asteriods"
         minSdkVersion 26
         targetSdkVersion 35
         versionCode 1
