@@ -10,10 +10,14 @@
 bool renderer_init(Renderer *renderer, const GameConfig *config, const char *title) {
     memset(renderer, 0, sizeof(*renderer));
 
+#ifdef SDL_PLATFORM_ANDROID
+    SDL_WindowFlags flags = SDL_WINDOW_FULLSCREEN;
+#else
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE;
     if (config->fullscreen) {
         flags |= SDL_WINDOW_FULLSCREEN;
     }
+#endif
 
     renderer->window = SDL_CreateWindow(title, config->window_width, config->window_height, flags);
     if (renderer->window == NULL) {

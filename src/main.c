@@ -111,8 +111,12 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
              (int)(save->master_volume * 100.0f + 0.5f));
     snprintf(lines[SETTINGS_ITEM_SOUND_VOLUME], sizeof(lines[0]), "SOUND VOLUME: %d",
              (int)(save->sfx_volume * 100.0f + 0.5f));
+#ifdef SDL_PLATFORM_ANDROID
+    snprintf(lines[SETTINGS_ITEM_FULLSCREEN], sizeof(lines[0]), "FULLSCREEN: ON");
+#else
     snprintf(lines[SETTINGS_ITEM_FULLSCREEN], sizeof(lines[0]), "FULLSCREEN: %s",
              save->fullscreen ? "ON" : "OFF");
+#endif
     snprintf(lines[SETTINGS_ITEM_CONTROLS], sizeof(lines[0]), "CONTROLS: %s",
              save->control_scheme == SAVE_CONTROL_SCHEME_ALTERNATE ? "ARROWS" : "WASD");
     snprintf(lines[SETTINGS_ITEM_RETURN], sizeof(lines[0]), "RETURN");
@@ -129,6 +133,9 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
 
 static void adjust_settings_item(int selected_index, int direction, SaveData *save,
                                   AudioSystem *audio, Renderer *renderer) {
+#ifdef SDL_PLATFORM_ANDROID
+    (void)renderer;
+#endif
     switch (selected_index) {
         case SETTINGS_ITEM_MASTER_VOLUME:
             save->master_volume += (float)direction * 0.05f;
@@ -143,8 +150,10 @@ static void adjust_settings_item(int selected_index, int direction, SaveData *sa
             audio->sfx_volume = save->sfx_volume;
             break;
         case SETTINGS_ITEM_FULLSCREEN:
+#ifndef SDL_PLATFORM_ANDROID
             save->fullscreen = save->fullscreen ? 0u : 1u;
             SDL_SetWindowFullscreen(renderer->window, save->fullscreen != 0);
+#endif
             break;
         case SETTINGS_ITEM_CONTROLS:
             save->control_scheme = save->control_scheme == SAVE_CONTROL_SCHEME_ALTERNATE
