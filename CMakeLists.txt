@@ -26,7 +26,9 @@ option(ASTEROIDS_ALTERNATE_CONTROLS "Build with an alternate default control sch
 option(ASTEROIDS_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(ASTEROIDS_BUILD_TESTS "Build the unit test suite" OFF)
 
-find_package(SDL3 REQUIRED CONFIG)
+if(NOT TARGET SDL3::SDL3)
+    find_package(SDL3 REQUIRED CONFIG)
+endif()
 
 add_library(asteroids_compiler_flags INTERFACE)
 target_compile_options(asteroids_compiler_flags INTERFACE

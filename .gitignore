@@ -11,3 +11,12 @@ compile_commands.json
 .cache/
 *.swp
 *~
+
+android/app/build/
+android/app/.cxx/
+android/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+android/*.iml
+android/captures/

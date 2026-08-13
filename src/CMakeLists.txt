@@ -30,37 +30,39 @@ set(ASTEROIDS_SOURCES
 )
 
 if(ANDROID)
-    add_library(asteroids SHARED ${ASTEROIDS_SOURCES})
+    set(ASTEROIDS_TARGET_NAME main)
+    add_library(${ASTEROIDS_TARGET_NAME} SHARED ${ASTEROIDS_SOURCES})
 else()
-    add_executable(asteroids ${ASTEROIDS_SOURCES})
+    set(ASTEROIDS_TARGET_NAME asteroids)
+    add_executable(${ASTEROIDS_TARGET_NAME} ${ASTEROIDS_SOURCES})
 endif()
 
-target_include_directories(asteroids PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${ASTEROIDS_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_library(ASTEROIDS_MATH_LIBRARY m)
 
-target_link_libraries(asteroids PRIVATE SDL3::SDL3 asteroids_compiler_flags)
+target_link_libraries(${ASTEROIDS_TARGET_NAME} PRIVATE SDL3::SDL3 asteroids_compiler_flags)
 if(ASTEROIDS_MATH_LIBRARY)
-    target_link_libraries(asteroids PRIVATE ${ASTEROIDS_MATH_LIBRARY})
+    target_link_libraries(${ASTEROIDS_TARGET_NAME} PRIVATE ${ASTEROIDS_MATH_LIBRARY})
 endif()
 
-target_compile_definitions(asteroids PRIVATE
+target_compile_definitions(${ASTEROIDS_TARGET_NAME} PRIVATE
     ASTEROIDS_ENABLE_DEBUG_OVERLAY=$<BOOL:${ASTEROIDS_ENABLE_DEBUG_OVERLAY}>
     ASTEROIDS_INSTALL_ASSET_DIR="${CMAKE_INSTALL_PREFIX}/share/asteroids/assets"
 )
 
 if(ASTEROIDS_ENABLE_ASSERTIONS)
-    target_compile_definitions(asteroids PRIVATE ASTEROIDS_FORCE_ASSERTIONS=1)
+    target_compile_definitions(${ASTEROIDS_TARGET_NAME} PRIVATE ASTEROIDS_FORCE_ASSERTIONS=1)
 else()
-    target_compile_definitions(asteroids PRIVATE $<$<CONFIG:Release,MinSizeRel>:NDEBUG>)
+    target_compile_definitions(${ASTEROIDS_TARGET_NAME} PRIVATE $<$<CONFIG:Release,MinSizeRel>:NDEBUG>)
 endif()
 
 if(ASTEROIDS_ALTERNATE_CONTROLS)
-    target_compile_definitions(asteroids PRIVATE ASTEROIDS_ALTERNATE_CONTROLS=1)
+    target_compile_definitions(${ASTEROIDS_TARGET_NAME} PRIVATE ASTEROIDS_ALTERNATE_CONTROLS=1)
 endif()
 
 if(ANDROID)
-    install(TARGETS asteroids LIBRARY DESTINATION lib)
+    install(TARGETS ${ASTEROIDS_TARGET_NAME} LIBRARY DESTINATION lib)
 else()
-    install(TARGETS asteroids RUNTIME DESTINATION bin)
+    install(TARGETS ${ASTEROIDS_TARGET_NAME} RUNTIME DESTINATION bin)
 endif()

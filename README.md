@@ -35,6 +35,31 @@ cmake --build build -j
 
 Example: `cmake -S . -B build -DASTEROIDS_ALTERNATE_CONTROLS=ON`
 
+### Android
+
+The `android/` directory is a Gradle project that builds the same `src/` sources
+(via `android/app/jni/CMakeLists.txt`, which `add_subdirectory()`s this repository's
+root `CMakeLists.txt`) into `libmain.so`, loaded by SDL3's stock `SDLActivity` Java
+glue (vendored under `android/app/src/main/java/org/libsdl/app/`, from SDL3 itself,
+zlib-licensed; see `SDL3-LICENSE.txt` next to it). No custom Java code is needed.
+
+SDL3 itself is a git submodule at `android/app/jni/SDL` pinned to the same
+`release-3.4.14` tag used elsewhere in this project. After cloning this repository:
+
+```sh
+git submodule update --init android/app/jni/SDL
+cd android
+./gradlew assembleDebug
+```
+
+This requires the Android SDK (API 35) and NDK (tested with r28c) to be installed,
+either via Android Studio or the command-line `sdkmanager`. The resulting APK is a
+debug build for `arm64-v8a` targeting a minimum of Android 8.0 (API 26); adjust
+`abiFilters` and `minSdkVersion` in `android/app/build.gradle` if you need broader
+device coverage. Config and save data live in the app's private internal storage on
+Android (see the Save data section below); sound assets are bundled into the APK
+from this repository's `assets/` directory.
+
 ## Controls
 
 | Action | Default scheme | Alternate scheme (`ASTEROIDS_ALTERNATE_CONTROLS=ON`) |

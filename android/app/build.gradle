@@ -1,0 +1,47 @@
+plugins {
+     id 'com.android.application'
+}
+
+android {
+    namespace = "org.anmitalidev.asteroids"
+    compileSdkVersion 35
+    ndkVersion = "28.2.13676358"
+    defaultConfig {
+        applicationId = "org.anmitalidev.asteroids"
+        minSdkVersion 26
+        targetSdkVersion 35
+        versionCode 1
+        versionName "1.0.0"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PLATFORM=android-26", "-DANDROID_STL=c++_static"
+                abiFilters 'arm64-v8a'
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    applicationVariants.all { variant ->
+        tasks["merge${variant.name.capitalize()}Assets"]
+            .dependsOn("externalNativeBuild${variant.name.capitalize()}")
+    }
+    sourceSets.main {
+        assets.srcDirs += ['../../assets']
+    }
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+        }
+    }
+    lint {
+        abortOnError = false
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}
