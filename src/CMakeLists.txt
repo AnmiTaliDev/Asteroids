@@ -1,11 +1,13 @@
 set(ASTEROIDS_PLATFORM_SOURCES "")
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(ANDROID)
+    list(APPEND ASTEROIDS_PLATFORM_SOURCES platform/platform_android.c)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND ASTEROIDS_PLATFORM_SOURCES platform/platform_linux.c)
 else()
-    message(FATAL_ERROR "Asteroids currently only ships a platform layer for Linux. Add a platform/platform_<os>.c implementation for this target.")
+    message(FATAL_ERROR "Asteroids currently only ships platform layers for Linux and Android. Add a platform/platform_<os>.c implementation for this target.")
 endif()
 
-add_executable(asteroids
+set(ASTEROIDS_SOURCES
     main.c
     core/vec2.h
     core/rng.h
@@ -26,6 +28,12 @@ add_executable(asteroids
     audio/audio.h
     audio/audio.c
 )
+
+if(ANDROID)
+    add_library(asteroids SHARED ${ASTEROIDS_SOURCES})
+else()
+    add_executable(asteroids ${ASTEROIDS_SOURCES})
+endif()
 
 target_include_directories(asteroids PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -51,4 +59,8 @@ if(ASTEROIDS_ALTERNATE_CONTROLS)
     target_compile_definitions(asteroids PRIVATE ASTEROIDS_ALTERNATE_CONTROLS=1)
 endif()
 
-install(TARGETS asteroids RUNTIME DESTINATION bin)
+if(ANDROID)
+    install(TARGETS asteroids LIBRARY DESTINATION lib)
+else()
+    install(TARGETS asteroids RUNTIME DESTINATION bin)
+endif()
