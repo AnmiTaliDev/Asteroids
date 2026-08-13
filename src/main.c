@@ -87,6 +87,11 @@ static UiButton paused_options_button(float world_width, float world_height) {
     return button;
 }
 
+static UiButton ingame_pause_button(float world_width) {
+    UiButton button = {vec2_make(world_width - 90.0f, 40.0f), 70.0f, 24.0f};
+    return button;
+}
+
 static UiButton settings_row_button(int index, float world_width, float world_height) {
     UiButton button = {
         vec2_make(world_width * 0.5f, world_height * 0.5f - 60.0f + (float)index * 40.0f),
@@ -484,6 +489,10 @@ int main(int argc, char **argv) {
                 }
             } else if (game.phase == GAME_PHASE_GAME_OVER) {
                 start_edge = true;
+            } else if (game.phase == GAME_PHASE_PLAYING) {
+                if (point_in_button(pointer_tap_position, ingame_pause_button(game.world_width))) {
+                    pause_edge = true;
+                }
             }
         }
 
@@ -598,6 +607,10 @@ int main(int argc, char **argv) {
             }
 
             draw_hud(&renderer, &game);
+
+            if (game.phase == GAME_PHASE_PLAYING) {
+                draw_button(&renderer, ingame_pause_button(game.world_width), "PAUSE", COLOR_DIM);
+            }
 
 #ifdef SDL_PLATFORM_ANDROID
             if (game.phase == GAME_PHASE_PLAYING) {
