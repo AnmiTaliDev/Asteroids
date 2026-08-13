@@ -123,6 +123,27 @@ void renderer_draw_point(Renderer *renderer, Vec2 position, RendererColor color)
     SDL_RenderPoint(renderer->sdl_renderer, position.x, position.y);
 }
 
+void renderer_draw_circle_outline(Renderer *renderer, Vec2 center, float radius, RendererColor color) {
+    const int segments = 20;
+    Vec2 points[20];
+    for (int i = 0; i < segments; i++) {
+        float angle = ((float)i / (float)segments) * 6.28318530718f;
+        points[i] = vec2_make(cosf(angle), sinf(angle));
+    }
+    renderer_draw_shape(renderer, center, 0.0f, radius, points, segments, true, color);
+}
+
+void renderer_draw_rect_outline(Renderer *renderer, Vec2 center, float half_width, float half_height,
+                                 RendererColor color) {
+    Vec2 points[4] = {
+        {-half_width, -half_height},
+        {half_width, -half_height},
+        {half_width, half_height},
+        {-half_width, half_height},
+    };
+    renderer_draw_shape(renderer, center, 0.0f, 1.0f, points, 4, true, color);
+}
+
 void renderer_draw_text(Renderer *renderer, Vec2 top_left, float glyph_width, float glyph_height,
                          const char *text, RendererColor color) {
     SDL_SetRenderDrawColor(renderer->sdl_renderer, color.r, color.g, color.b, color.a);

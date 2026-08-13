@@ -20,11 +20,29 @@
 #define SETTINGS_ITEM_FULLSCREEN 2
 #define SETTINGS_ITEM_CONTROLS 3
 #define SETTINGS_ITEM_RETURN 4
+#define MAX_ACTIVE_TOUCHES 8
 
 typedef enum AppState {
     APP_STATE_GAME,
     APP_STATE_SETTINGS
 } AppState;
+
+typedef struct ActiveTouch {
+    SDL_FingerID id;
+    Vec2 position;
+    bool active;
+} ActiveTouch;
+
+typedef struct UiButton {
+    Vec2 center;
+    float half_width;
+    float half_height;
+} UiButton;
+
+typedef struct UiCircleButton {
+    Vec2 center;
+    float radius;
+} UiCircleButton;
 
 static const RendererColor COLOR_WHITE = {230, 230, 240, 255};
 static const RendererColor COLOR_DIM = {130, 130, 150, 255};
@@ -49,6 +67,103 @@ static void build_input(GameInput *input, const bool *keys, SaveControlScheme co
     input->pause_pressed = pause_edge;
 }
 
+#ifdef SDL_PLATFORM_ANDROID
+static const Vec2 ARROW_POINTS[] = {
+    {0.6f, 0.0f},
+    {-0.5f, 0.45f},
+    {-0.5f, -0.45f},
+};
+#define ARROW_POINT_COUNT 3
+#endif
+
+static UiButton menu_start_button(float world_width, float world_height) {
+    UiButton button = {vec2_make(world_width * 0.5f, world_height * 0.5f + 30.0f), 140.0f, 30.0f};
+    return button;
+}
+
+static UiButton menu_options_button(float world_width, float world_height) {
+    UiButton button = {vec2_make(world_width * 0.5f, world_height * 0.5f + 100.0f), 140.0f, 30.0f};
+    return button;
+}
+
+static UiButton paused_resume_button(float world_width, float world_height) {
+    UiButton button = {vec2_make(world_width * 0.5f, world_height * 0.5f + 20.0f), 140.0f, 30.0f};
+    return button;
+}
+
+static UiButton paused_options_button(float world_width, float world_height) {
+    UiButton button = {vec2_make(world_width * 0.5f, world_height * 0.5f + 90.0f), 140.0f, 30.0f};
+    return button;
+}
+
+static UiButton settings_row_button(int index, float world_width, float world_height) {
+    UiButton button = {
+        vec2_make(world_width * 0.5f, world_height * 0.5f - 60.0f + (float)index * 40.0f),
+        190.0f, 18.0f,
+    };
+    return button;
+}
+
+static UiCircleButton ingame_rotate_left_button(float world_height) {
+    UiCircleButton button = {vec2_make(100.0f, world_height - 100.0f), 55.0f};
+    return button;
+}
+
+static UiCircleButton ingame_rotate_right_button(float world_height) {
+    UiCircleButton button = {vec2_make(230.0f, world_height - 100.0f), 55.0f};
+    return button;
+}
+
+static UiCircleButton ingame_thrust_button(float world_height) {
+    UiCircleButton button = {vec2_make(165.0f, world_height - 220.0f), 55.0f};
+    return button;
+}
+
+static UiCircleButton ingame_fire_button(float world_width, float world_height) {
+    UiCircleButton button = {vec2_make(world_width - 120.0f, world_height - 120.0f), 75.0f};
+    return button;
+}
+
+static bool point_in_button(Vec2 point, UiButton button) {
+    return fabsf(point.x - button.center.x) <= button.half_width &&
+           fabsf(point.y - button.center.y) <= button.half_height;
+}
+
+static bool point_in_circle_button(Vec2 point, UiCircleButton button) {
+    return vec2_length(vec2_sub(point, button.center)) <= button.radius;
+}
+
+static void touch_set(ActiveTouch *touches, SDL_FingerID id, Vec2 position) {
+    for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
+        if (touches[i].active && touches[i].id == id) {
+            touches[i].position = position;
+            return;
+        }
+    }
+    for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
+        if (!touches[i].active) {
+            touches[i].active = true;
+            touches[i].id = id;
+            touches[i].position = position;
+            return;
+        }
+    }
+}
+
+static void touch_clear(ActiveTouch *touches, SDL_FingerID id) {
+    for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
+        if (touches[i].active && touches[i].id == id) {
+            touches[i].active = false;
+            return;
+        }
+    }
+}
+
+static void draw_button(Renderer *renderer, UiButton button, const char *label, RendererColor color) {
+    renderer_draw_rect_outline(renderer, button.center, button.half_width, button.half_height, color);
+    renderer_draw_text_centered(renderer, button.center, 12.0f, 18.0f, label, color);
+}
+
 static void draw_ship(Renderer *renderer, const Ship *ship) {
     if (!ship->alive) {
         return;
@@ -66,16 +181,6 @@ static void draw_ship(Renderer *renderer, const Ship *ship) {
         renderer_draw_shape(renderer, ship->position, ship->rotation, 22.0f,
                              SHIP_THRUST_POINTS, SHIP_THRUST_POINT_COUNT, false, COLOR_BULLET);
     }
-}
-
-static void draw_circle_outline(Renderer *renderer, Vec2 center, float radius, RendererColor color) {
-    const int segments = 20;
-    Vec2 points[20];
-    for (int i = 0; i < segments; i++) {
-        float angle = ((float)i / (float)segments) * 6.28318530718f;
-        points[i] = vec2_make(cosf(angle), sinf(angle));
-    }
-    renderer_draw_shape(renderer, center, 0.0f, radius, points, segments, true, color);
 }
 
 static void draw_hud(Renderer *renderer, const GameContext *ctx) {
@@ -122,9 +227,10 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
     snprintf(lines[SETTINGS_ITEM_RETURN], sizeof(lines[0]), "RETURN");
 
     for (int i = 0; i < SETTINGS_ITEM_COUNT; i++) {
-        Vec2 row_center = vec2_make(world_width * 0.5f, world_height * 0.5f - 60.0f + (float)i * 40.0f);
+        UiButton row = settings_row_button(i, world_width, world_height);
         RendererColor color = i == selected_index ? COLOR_WHITE : COLOR_DIM;
-        renderer_draw_text_centered(renderer, row_center, 14.0f, 20.0f, lines[i], color);
+        renderer_draw_rect_outline(renderer, row.center, row.half_width, row.half_height, color);
+        renderer_draw_text_centered(renderer, row.center, 14.0f, 20.0f, lines[i], color);
     }
 
     Vec2 hint_center = vec2_make(world_width * 0.5f, world_height * 0.5f + 160.0f);
@@ -253,14 +359,43 @@ int main(int argc, char **argv) {
     AppState app_state = APP_STATE_GAME;
     int settings_selected_index = 0;
 
+    ActiveTouch active_touches[MAX_ACTIVE_TOUCHES];
+    memset(active_touches, 0, sizeof(active_touches));
+    bool mouse_down = false;
+    Vec2 mouse_position = vec2_make(0.0f, 0.0f);
+
     while (running) {
         bool start_edge = false;
         bool pause_edge = false;
+        bool pointer_tap = false;
+        Vec2 pointer_tap_position = vec2_make(0.0f, 0.0f);
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (event.type == SDL_EVENT_FINGER_DOWN) {
+                SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
+                Vec2 position = vec2_make(event.tfinger.x, event.tfinger.y);
+                touch_set(active_touches, event.tfinger.fingerID, position);
+                pointer_tap = true;
+                pointer_tap_position = position;
+            } else if (event.type == SDL_EVENT_FINGER_MOTION) {
+                SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
+                touch_set(active_touches, event.tfinger.fingerID, vec2_make(event.tfinger.x, event.tfinger.y));
+            } else if (event.type == SDL_EVENT_FINGER_UP || event.type == SDL_EVENT_FINGER_CANCELED) {
+                touch_clear(active_touches, event.tfinger.fingerID);
+            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+                SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
+                mouse_down = true;
+                mouse_position = vec2_make(event.button.x, event.button.y);
+                pointer_tap = true;
+                pointer_tap_position = mouse_position;
+            } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
+                mouse_position = vec2_make(event.motion.x, event.motion.y);
+            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
+                mouse_down = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
                 if (app_state == APP_STATE_SETTINGS) {
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
@@ -299,9 +434,68 @@ int main(int argc, char **argv) {
             }
         }
 
+        if (pointer_tap) {
+            if (app_state == APP_STATE_SETTINGS) {
+                for (int i = 0; i < SETTINGS_ITEM_COUNT; i++) {
+                    UiButton row = settings_row_button(i, game.world_width, game.world_height);
+                    if (point_in_button(pointer_tap_position, row)) {
+                        settings_selected_index = i;
+                        if (i == SETTINGS_ITEM_RETURN) {
+                            app_state = APP_STATE_GAME;
+                            save_write(save_path, &save);
+                        } else {
+                            adjust_settings_item(i, 1, &save, &audio, &renderer);
+                        }
+                        break;
+                    }
+                }
+            } else if (game.phase == GAME_PHASE_MENU) {
+                if (point_in_button(pointer_tap_position, menu_start_button(game.world_width, game.world_height))) {
+                    start_edge = true;
+                } else if (point_in_button(pointer_tap_position, menu_options_button(game.world_width, game.world_height))) {
+                    app_state = APP_STATE_SETTINGS;
+                    settings_selected_index = 0;
+                }
+            } else if (game.phase == GAME_PHASE_PAUSED) {
+                if (point_in_button(pointer_tap_position, paused_resume_button(game.world_width, game.world_height))) {
+                    pause_edge = true;
+                } else if (point_in_button(pointer_tap_position, paused_options_button(game.world_width, game.world_height))) {
+                    app_state = APP_STATE_SETTINGS;
+                    settings_selected_index = 0;
+                }
+            } else if (game.phase == GAME_PHASE_GAME_OVER) {
+                start_edge = true;
+            }
+        }
+
         const bool *keys = SDL_GetKeyboardState(NULL);
         GameInput input;
         build_input(&input, keys, (SaveControlScheme)save.control_scheme, start_edge, pause_edge);
+
+        if (app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING) {
+            UiCircleButton rotate_left_button = ingame_rotate_left_button(game.world_height);
+            UiCircleButton rotate_right_button = ingame_rotate_right_button(game.world_height);
+            UiCircleButton thrust_button = ingame_thrust_button(game.world_height);
+            UiCircleButton fire_button = ingame_fire_button(game.world_width, game.world_height);
+
+            for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
+                if (!active_touches[i].active) {
+                    continue;
+                }
+                Vec2 position = active_touches[i].position;
+                input.rotate_left |= point_in_circle_button(position, rotate_left_button);
+                input.rotate_right |= point_in_circle_button(position, rotate_right_button);
+                input.thrust |= point_in_circle_button(position, thrust_button);
+                input.fire |= point_in_circle_button(position, fire_button);
+            }
+
+            if (mouse_down) {
+                input.rotate_left |= point_in_circle_button(mouse_position, rotate_left_button);
+                input.rotate_right |= point_in_circle_button(mouse_position, rotate_right_button);
+                input.thrust |= point_in_circle_button(mouse_position, thrust_button);
+                input.fire |= point_in_circle_button(mouse_position, fire_button);
+            }
+        }
 
         Uint64 current_ticks = SDL_GetTicks();
         float dt = (float)(current_ticks - previous_ticks) / 1000.0f;
@@ -332,14 +526,16 @@ int main(int argc, char **argv) {
         if (app_state == APP_STATE_SETTINGS) {
             draw_settings_screen(&renderer, game.world_width, game.world_height, &save, settings_selected_index);
         } else if (game.phase == GAME_PHASE_MENU) {
-            draw_centered_message(&renderer, game.world_width, game.world_height,
-                                   "ASTEROIDS", "PRESS ENTER TO START");
+            Vec2 title_center = vec2_make(game.world_width * 0.5f, game.world_height * 0.5f - 100.0f);
+            renderer_draw_text_centered(&renderer, title_center, 22.0f, 30.0f, "ASTEROIDS", COLOR_WHITE);
+
             char high_score_line[64];
             snprintf(high_score_line, sizeof(high_score_line), "HIGH SCORE %u", save.high_scores[0].score);
-            renderer_draw_text_centered(&renderer, vec2_make(game.world_width * 0.5f, game.world_height * 0.5f + 60.0f),
+            renderer_draw_text_centered(&renderer, vec2_make(game.world_width * 0.5f, game.world_height * 0.5f - 40.0f),
                                          12.0f, 18.0f, high_score_line, COLOR_DIM);
-            renderer_draw_text_centered(&renderer, vec2_make(game.world_width * 0.5f, game.world_height * 0.5f + 90.0f),
-                                         10.0f, 14.0f, "PRESS O FOR OPTIONS", COLOR_DIM);
+
+            draw_button(&renderer, menu_start_button(game.world_width, game.world_height), "START", COLOR_WHITE);
+            draw_button(&renderer, menu_options_button(game.world_width, game.world_height), "OPTIONS", COLOR_DIM);
         } else {
             for (int i = 0; i < GAME_MAX_ASTEROIDS; i++) {
                 const Asteroid *asteroid = &game.asteroids[i];
@@ -349,7 +545,7 @@ int main(int argc, char **argv) {
                 renderer_draw_shape(&renderer, asteroid->position, asteroid->rotation, asteroid->radius,
                                      asteroid->shape_points, asteroid->vertex_count, true, COLOR_ASTEROID);
                 if (show_debug_overlay) {
-                    draw_circle_outline(&renderer, asteroid->position, asteroid->radius, COLOR_DEBUG);
+                    renderer_draw_circle_outline(&renderer, asteroid->position, asteroid->radius, COLOR_DEBUG);
                 }
             }
 
@@ -373,15 +569,41 @@ int main(int argc, char **argv) {
 
             draw_ship(&renderer, &game.ship);
             if (show_debug_overlay && game.ship.alive) {
-                draw_circle_outline(&renderer, game.ship.position, config.ship_radius, COLOR_DEBUG);
+                renderer_draw_circle_outline(&renderer, game.ship.position, config.ship_radius, COLOR_DEBUG);
             }
 
             draw_hud(&renderer, &game);
 
+#ifdef SDL_PLATFORM_ANDROID
+            if (game.phase == GAME_PHASE_PLAYING) {
+                UiCircleButton rotate_left = ingame_rotate_left_button(game.world_height);
+                UiCircleButton rotate_right = ingame_rotate_right_button(game.world_height);
+                UiCircleButton thrust = ingame_thrust_button(game.world_height);
+                UiCircleButton fire = ingame_fire_button(game.world_width, game.world_height);
+
+                renderer_draw_circle_outline(&renderer, rotate_left.center, rotate_left.radius, COLOR_DIM);
+                renderer_draw_shape(&renderer, rotate_left.center, 3.14159265359f, rotate_left.radius * 0.6f,
+                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
+
+                renderer_draw_circle_outline(&renderer, rotate_right.center, rotate_right.radius, COLOR_DIM);
+                renderer_draw_shape(&renderer, rotate_right.center, 0.0f, rotate_right.radius * 0.6f,
+                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
+
+                renderer_draw_circle_outline(&renderer, thrust.center, thrust.radius, COLOR_DIM);
+                renderer_draw_shape(&renderer, thrust.center, -1.57079632679f, thrust.radius * 0.6f,
+                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
+
+                renderer_draw_circle_outline(&renderer, fire.center, fire.radius, COLOR_DIM);
+                renderer_draw_text_centered(&renderer, fire.center, 14.0f, 20.0f, "FIRE", COLOR_DIM);
+            }
+#endif
+
             if (game.phase == GAME_PHASE_PAUSED) {
-                draw_centered_message(&renderer, game.world_width, game.world_height, "PAUSED", "P TO RESUME - O FOR OPTIONS");
+                draw_centered_message(&renderer, game.world_width, game.world_height, "PAUSED", NULL);
+                draw_button(&renderer, paused_resume_button(game.world_width, game.world_height), "RESUME", COLOR_WHITE);
+                draw_button(&renderer, paused_options_button(game.world_width, game.world_height), "OPTIONS", COLOR_DIM);
             } else if (game.phase == GAME_PHASE_GAME_OVER) {
-                draw_centered_message(&renderer, game.world_width, game.world_height, "GAME OVER", "PRESS ENTER");
+                draw_centered_message(&renderer, game.world_width, game.world_height, "GAME OVER", "TAP OR PRESS ENTER");
             } else if (game.phase == GAME_PHASE_WAVE_TRANSITION) {
                 char wave_line[32];
                 snprintf(wave_line, sizeof(wave_line), "WAVE %d", game.wave_number + 1);

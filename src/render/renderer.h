@@ -37,6 +37,9 @@ void renderer_draw_starfield(Renderer *renderer);
 void renderer_draw_shape(Renderer *renderer, Vec2 center, float rotation, float scale,
                           const Vec2 *points, int point_count, bool closed, RendererColor color);
 void renderer_draw_point(Renderer *renderer, Vec2 position, RendererColor color);
+void renderer_draw_circle_outline(Renderer *renderer, Vec2 center, float radius, RendererColor color);
+void renderer_draw_rect_outline(Renderer *renderer, Vec2 center, float half_width, float half_height,
+                                 RendererColor color);
 void renderer_draw_text(Renderer *renderer, Vec2 top_left, float glyph_width, float glyph_height,
                          const char *text, RendererColor color);
 void renderer_draw_text_centered(Renderer *renderer, Vec2 center, float glyph_width, float glyph_height,
