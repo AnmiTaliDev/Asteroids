@@ -37,6 +37,8 @@ typedef struct GameInput {
     bool fire;
     bool pause_pressed;
     bool start_pressed;
+    bool has_target_rotation;
+    float target_rotation;
 } GameInput;
 
 typedef struct GameContext {

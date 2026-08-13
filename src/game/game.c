@@ -236,11 +236,28 @@ static void update_ship(GameContext *ctx, float dt, const GameInput *input) {
     }
 
     float rotation_speed_rad = ctx->config.ship_rotation_speed_deg * 0.01745329252f;
-    if (input->rotate_left) {
-        ship->rotation -= rotation_speed_rad * dt;
-    }
-    if (input->rotate_right) {
-        ship->rotation += rotation_speed_rad * dt;
+    if (input->has_target_rotation) {
+        float delta = input->target_rotation - ship->rotation;
+        while (delta > 3.14159265359f) {
+            delta -= 6.28318530718f;
+        }
+        while (delta < -3.14159265359f) {
+            delta += 6.28318530718f;
+        }
+        float max_step = rotation_speed_rad * dt;
+        if (delta > max_step) {
+            delta = max_step;
+        } else if (delta < -max_step) {
+            delta = -max_step;
+        }
+        ship->rotation += delta;
+    } else {
+        if (input->rotate_left) {
+            ship->rotation -= rotation_speed_rad * dt;
+        }
+        if (input->rotate_right) {
+            ship->rotation += rotation_speed_rad * dt;
+        }
     }
 
     bool was_thrusting = ship->thrusting;

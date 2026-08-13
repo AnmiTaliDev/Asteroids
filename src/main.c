@@ -67,15 +67,6 @@ static void build_input(GameInput *input, const bool *keys, SaveControlScheme co
     input->pause_pressed = pause_edge;
 }
 
-#ifdef SDL_PLATFORM_ANDROID
-static const Vec2 ARROW_POINTS[] = {
-    {0.6f, 0.0f},
-    {-0.5f, 0.45f},
-    {-0.5f, -0.45f},
-};
-#define ARROW_POINT_COUNT 3
-#endif
-
 static UiButton menu_start_button(float world_width, float world_height) {
     UiButton button = {vec2_make(world_width * 0.5f, world_height * 0.5f + 30.0f), 140.0f, 30.0f};
     return button;
@@ -104,18 +95,13 @@ static UiButton settings_row_button(int index, float world_width, float world_he
     return button;
 }
 
-static UiCircleButton ingame_rotate_left_button(float world_height) {
-    UiCircleButton button = {vec2_make(100.0f, world_height - 100.0f), 55.0f};
-    return button;
-}
+#define JOYSTICK_BASE_RADIUS 90.0f
+#define JOYSTICK_KNOB_RADIUS 34.0f
+#define JOYSTICK_ACTIVATION_RADIUS 140.0f
+#define JOYSTICK_DEADZONE 14.0f
 
-static UiCircleButton ingame_rotate_right_button(float world_height) {
-    UiCircleButton button = {vec2_make(230.0f, world_height - 100.0f), 55.0f};
-    return button;
-}
-
-static UiCircleButton ingame_thrust_button(float world_height) {
-    UiCircleButton button = {vec2_make(165.0f, world_height - 220.0f), 55.0f};
+static UiCircleButton ingame_joystick_base(float world_height) {
+    UiCircleButton button = {vec2_make(160.0f, world_height - 160.0f), JOYSTICK_BASE_RADIUS};
     return button;
 }
 
@@ -364,6 +350,11 @@ int main(int argc, char **argv) {
     bool mouse_down = false;
     Vec2 mouse_position = vec2_make(0.0f, 0.0f);
 
+    bool joystick_active = false;
+    bool joystick_owner_is_mouse = false;
+    SDL_FingerID joystick_touch_id = 0;
+    Vec2 joystick_current_position = vec2_make(0.0f, 0.0f);
+
     while (running) {
         bool start_edge = false;
         bool pause_edge = false;
@@ -378,24 +369,52 @@ int main(int argc, char **argv) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 Vec2 position = vec2_make(event.tfinger.x, event.tfinger.y);
                 touch_set(active_touches, event.tfinger.fingerID, position);
-                pointer_tap = true;
-                pointer_tap_position = position;
+                if (!joystick_active && app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING &&
+                    point_in_circle_button(position, (UiCircleButton){ingame_joystick_base(game.world_height).center, JOYSTICK_ACTIVATION_RADIUS})) {
+                    joystick_active = true;
+                    joystick_owner_is_mouse = false;
+                    joystick_touch_id = event.tfinger.fingerID;
+                    joystick_current_position = position;
+                } else {
+                    pointer_tap = true;
+                    pointer_tap_position = position;
+                }
             } else if (event.type == SDL_EVENT_FINGER_MOTION) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
-                touch_set(active_touches, event.tfinger.fingerID, vec2_make(event.tfinger.x, event.tfinger.y));
+                Vec2 position = vec2_make(event.tfinger.x, event.tfinger.y);
+                touch_set(active_touches, event.tfinger.fingerID, position);
+                if (joystick_active && !joystick_owner_is_mouse && event.tfinger.fingerID == joystick_touch_id) {
+                    joystick_current_position = position;
+                }
             } else if (event.type == SDL_EVENT_FINGER_UP || event.type == SDL_EVENT_FINGER_CANCELED) {
+                if (joystick_active && !joystick_owner_is_mouse && event.tfinger.fingerID == joystick_touch_id) {
+                    joystick_active = false;
+                }
                 touch_clear(active_touches, event.tfinger.fingerID);
             } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 mouse_down = true;
                 mouse_position = vec2_make(event.button.x, event.button.y);
-                pointer_tap = true;
-                pointer_tap_position = mouse_position;
+                if (!joystick_active && app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING &&
+                    point_in_circle_button(mouse_position, (UiCircleButton){ingame_joystick_base(game.world_height).center, JOYSTICK_ACTIVATION_RADIUS})) {
+                    joystick_active = true;
+                    joystick_owner_is_mouse = true;
+                    joystick_current_position = mouse_position;
+                } else {
+                    pointer_tap = true;
+                    pointer_tap_position = mouse_position;
+                }
             } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 mouse_position = vec2_make(event.motion.x, event.motion.y);
+                if (joystick_active && joystick_owner_is_mouse) {
+                    joystick_current_position = mouse_position;
+                }
             } else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
                 mouse_down = false;
+                if (joystick_active && joystick_owner_is_mouse) {
+                    joystick_active = false;
+                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
                 if (app_state == APP_STATE_SETTINGS) {
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
@@ -473,28 +492,34 @@ int main(int argc, char **argv) {
         build_input(&input, keys, (SaveControlScheme)save.control_scheme, start_edge, pause_edge);
 
         if (app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING) {
-            UiCircleButton rotate_left_button = ingame_rotate_left_button(game.world_height);
-            UiCircleButton rotate_right_button = ingame_rotate_right_button(game.world_height);
-            UiCircleButton thrust_button = ingame_thrust_button(game.world_height);
             UiCircleButton fire_button = ingame_fire_button(game.world_width, game.world_height);
 
             for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
                 if (!active_touches[i].active) {
                     continue;
                 }
-                Vec2 position = active_touches[i].position;
-                input.rotate_left |= point_in_circle_button(position, rotate_left_button);
-                input.rotate_right |= point_in_circle_button(position, rotate_right_button);
-                input.thrust |= point_in_circle_button(position, thrust_button);
-                input.fire |= point_in_circle_button(position, fire_button);
+                if (joystick_active && !joystick_owner_is_mouse && active_touches[i].id == joystick_touch_id) {
+                    continue;
+                }
+                input.fire |= point_in_circle_button(active_touches[i].position, fire_button);
             }
 
-            if (mouse_down) {
-                input.rotate_left |= point_in_circle_button(mouse_position, rotate_left_button);
-                input.rotate_right |= point_in_circle_button(mouse_position, rotate_right_button);
-                input.thrust |= point_in_circle_button(mouse_position, thrust_button);
+            if (mouse_down && !(joystick_active && joystick_owner_is_mouse)) {
                 input.fire |= point_in_circle_button(mouse_position, fire_button);
             }
+
+            if (joystick_active) {
+                UiCircleButton joystick_base = ingame_joystick_base(game.world_height);
+                Vec2 offset = vec2_sub(joystick_current_position, joystick_base.center);
+                float offset_length = vec2_length(offset);
+                if (offset_length > JOYSTICK_DEADZONE) {
+                    input.has_target_rotation = true;
+                    input.target_rotation = atan2f(offset.y, offset.x);
+                    input.thrust = true;
+                }
+            }
+        } else {
+            joystick_active = false;
         }
 
         Uint64 current_ticks = SDL_GetTicks();
@@ -576,22 +601,21 @@ int main(int argc, char **argv) {
 
 #ifdef SDL_PLATFORM_ANDROID
             if (game.phase == GAME_PHASE_PLAYING) {
-                UiCircleButton rotate_left = ingame_rotate_left_button(game.world_height);
-                UiCircleButton rotate_right = ingame_rotate_right_button(game.world_height);
-                UiCircleButton thrust = ingame_thrust_button(game.world_height);
+                UiCircleButton joystick_base = ingame_joystick_base(game.world_height);
                 UiCircleButton fire = ingame_fire_button(game.world_width, game.world_height);
 
-                renderer_draw_circle_outline(&renderer, rotate_left.center, rotate_left.radius, COLOR_DIM);
-                renderer_draw_shape(&renderer, rotate_left.center, 3.14159265359f, rotate_left.radius * 0.6f,
-                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
+                renderer_draw_circle_outline(&renderer, joystick_base.center, joystick_base.radius, COLOR_DIM);
 
-                renderer_draw_circle_outline(&renderer, rotate_right.center, rotate_right.radius, COLOR_DIM);
-                renderer_draw_shape(&renderer, rotate_right.center, 0.0f, rotate_right.radius * 0.6f,
-                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
-
-                renderer_draw_circle_outline(&renderer, thrust.center, thrust.radius, COLOR_DIM);
-                renderer_draw_shape(&renderer, thrust.center, -1.57079632679f, thrust.radius * 0.6f,
-                                     ARROW_POINTS, ARROW_POINT_COUNT, true, COLOR_DIM);
+                Vec2 knob_center = joystick_base.center;
+                if (joystick_active) {
+                    Vec2 offset = vec2_sub(joystick_current_position, joystick_base.center);
+                    float offset_length = vec2_length(offset);
+                    if (offset_length > joystick_base.radius) {
+                        offset = vec2_scale(offset, joystick_base.radius / offset_length);
+                    }
+                    knob_center = vec2_add(joystick_base.center, offset);
+                }
+                renderer_draw_circle_outline(&renderer, knob_center, JOYSTICK_KNOB_RADIUS, COLOR_WHITE);
 
                 renderer_draw_circle_outline(&renderer, fire.center, fire.radius, COLOR_DIM);
                 renderer_draw_text_centered(&renderer, fire.center, 14.0f, 20.0f, "FIRE", COLOR_DIM);
