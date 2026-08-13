@@ -25,7 +25,7 @@ static const GlyphSegment GLYPH_9[] = {{TL,TR},{TR,MR},{MR,BR},{BL,BR},{TL,ML},{
 
 static const GlyphSegment GLYPH_A[] = {{TL,TR},{TL,ML},{TR,MR},{ML,MR},{ML,BL},{MR,BR}};
 static const GlyphSegment GLYPH_C[] = {{TL,TR},{TL,ML},{ML,BL},{BL,BR}};
-static const GlyphSegment GLYPH_D[] = {{TL,TR},{TL,ML},{ML,BL},{TR,MR},{MR,BR},{BL,BR}};
+static const GlyphSegment GLYPH_D[] = {{TR,MR},{MR,BR},{ML,MR},{ML,BL},{BL,BR}};
 static const GlyphSegment GLYPH_E[] = {{TL,TR},{TL,ML},{ML,MR},{ML,BL},{BL,BR}};
 static const GlyphSegment GLYPH_F[] = {{TL,TR},{TL,BL},{ML,MR}};
 static const GlyphSegment GLYPH_G[] = {{TL,TR},{TL,ML},{ML,BL},{BL,BR},{MR,BR},{MM,MR}};
