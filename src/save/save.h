@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define SAVE_MAGIC 0x44545341u
-#define SAVE_VERSION_CURRENT 1u
+#define SAVE_VERSION_CURRENT 3u
 #define SAVE_MAX_HIGH_SCORES 10
 #define SAVE_INITIALS_LENGTH 4
 
@@ -27,6 +27,8 @@ typedef struct SaveData {
     float sfx_volume;
     uint32_t fullscreen;
     uint32_t control_scheme;
+    uint32_t mouse_control_enabled;
+    uint32_t touch_controls_enabled;
     uint32_t checksum;
 } SaveData;
 

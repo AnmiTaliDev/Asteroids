@@ -33,6 +33,8 @@ void save_set_defaults(SaveData *save) {
     save->sfx_volume = 1.0f;
     save->fullscreen = 0;
     save->control_scheme = SAVE_CONTROL_SCHEME_DEFAULT;
+    save->mouse_control_enabled = 1;
+    save->touch_controls_enabled = 1;
     save->checksum = save_checksum(save);
 }
 

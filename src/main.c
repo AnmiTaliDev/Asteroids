@@ -14,12 +14,14 @@
 
 #define GAME_TITLE "Asteroids"
 #define MAX_FRAME_DT 0.05f
-#define SETTINGS_ITEM_COUNT 5
 #define SETTINGS_ITEM_MASTER_VOLUME 0
 #define SETTINGS_ITEM_SOUND_VOLUME 1
 #define SETTINGS_ITEM_FULLSCREEN 2
 #define SETTINGS_ITEM_CONTROLS 3
-#define SETTINGS_ITEM_RETURN 4
+#define SETTINGS_ITEM_MOUSE_CONTROL 4
+#define SETTINGS_ITEM_TOUCH_CONTROLS 5
+#define SETTINGS_ITEM_RETURN 6
+#define SETTINGS_ITEM_COUNT 7
 #define MAX_ACTIVE_TOUCHES 8
 
 typedef enum AppState {
@@ -215,6 +217,10 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
 #endif
     snprintf(lines[SETTINGS_ITEM_CONTROLS], sizeof(lines[0]), "CONTROLS: %s",
              save->control_scheme == SAVE_CONTROL_SCHEME_ALTERNATE ? "ARROWS" : "WASD");
+    snprintf(lines[SETTINGS_ITEM_MOUSE_CONTROL], sizeof(lines[0]), "MOUSE CONTROL: %s",
+             save->mouse_control_enabled ? "ON" : "OFF");
+    snprintf(lines[SETTINGS_ITEM_TOUCH_CONTROLS], sizeof(lines[0]), "TOUCH CONTROLS: %s",
+             save->touch_controls_enabled ? "ON" : "OFF");
     snprintf(lines[SETTINGS_ITEM_RETURN], sizeof(lines[0]), "RETURN");
 
     for (int i = 0; i < SETTINGS_ITEM_COUNT; i++) {
@@ -256,6 +262,12 @@ static void adjust_settings_item(int selected_index, int direction, SaveData *sa
             save->control_scheme = save->control_scheme == SAVE_CONTROL_SCHEME_ALTERNATE
                                         ? SAVE_CONTROL_SCHEME_DEFAULT
                                         : SAVE_CONTROL_SCHEME_ALTERNATE;
+            break;
+        case SETTINGS_ITEM_MOUSE_CONTROL:
+            save->mouse_control_enabled = save->mouse_control_enabled ? 0u : 1u;
+            break;
+        case SETTINGS_ITEM_TOUCH_CONTROLS:
+            save->touch_controls_enabled = save->touch_controls_enabled ? 0u : 1u;
             break;
         default:
             break;
@@ -375,6 +387,7 @@ int main(int argc, char **argv) {
                 Vec2 position = vec2_make(event.tfinger.x, event.tfinger.y);
                 touch_set(active_touches, event.tfinger.fingerID, position);
                 if (!joystick_active && app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING &&
+                    save.touch_controls_enabled &&
                     point_in_circle_button(position, (UiCircleButton){ingame_joystick_base(game.world_height).center, JOYSTICK_ACTIVATION_RADIUS})) {
                     joystick_active = true;
                     joystick_touch_id = event.tfinger.fingerID;
@@ -490,17 +503,19 @@ int main(int argc, char **argv) {
         if (app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING) {
             UiCircleButton fire_button = ingame_fire_button(game.world_width, game.world_height);
 
-            for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
-                if (!active_touches[i].active) {
-                    continue;
+            if (save.touch_controls_enabled) {
+                for (int i = 0; i < MAX_ACTIVE_TOUCHES; i++) {
+                    if (!active_touches[i].active) {
+                        continue;
+                    }
+                    if (joystick_active && active_touches[i].id == joystick_touch_id) {
+                        continue;
+                    }
+                    input.fire |= point_in_circle_button(active_touches[i].position, fire_button);
                 }
-                if (joystick_active && active_touches[i].id == joystick_touch_id) {
-                    continue;
-                }
-                input.fire |= point_in_circle_button(active_touches[i].position, fire_button);
             }
 
-            if (mouse_down) {
+            if (mouse_down && save.mouse_control_enabled) {
                 input.fire |= point_in_circle_button(mouse_position, fire_button);
 
                 if (!point_in_button(mouse_position, ingame_pause_button(game.world_width))) {
@@ -607,8 +622,7 @@ int main(int argc, char **argv) {
                 draw_button(&renderer, ingame_pause_button(game.world_width), "PAUSE", COLOR_DIM);
             }
 
-#ifdef SDL_PLATFORM_ANDROID
-            if (game.phase == GAME_PHASE_PLAYING) {
+            if (game.phase == GAME_PHASE_PLAYING && save.touch_controls_enabled) {
                 UiCircleButton joystick_base = ingame_joystick_base(game.world_height);
                 UiCircleButton fire = ingame_fire_button(game.world_width, game.world_height);
 
@@ -628,12 +642,11 @@ int main(int argc, char **argv) {
                 renderer_draw_circle_outline(&renderer, fire.center, fire.radius, COLOR_DIM);
                 renderer_draw_text_centered(&renderer, fire.center, 20.0f, "FIRE", COLOR_DIM);
             }
-#else
-            if (game.phase == GAME_PHASE_PLAYING && mouse_down &&
+
+            if (game.phase == GAME_PHASE_PLAYING && mouse_down && save.mouse_control_enabled &&
                 !point_in_button(mouse_position, ingame_pause_button(game.world_width))) {
                 renderer_draw_circle_outline(&renderer, mouse_position, JOYSTICK_KNOB_RADIUS, COLOR_DIM);
             }
-#endif
 
             if (game.phase == GAME_PHASE_PAUSED) {
                 draw_centered_message(&renderer, game.world_width, game.world_height, "PAUSED", NULL);
