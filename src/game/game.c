@@ -443,7 +443,7 @@ static void resolve_collisions(GameContext *ctx) {
                     }
                 }
 
-                destroy_asteroid(ctx, asteroid, !rammed);
+                destroy_asteroid(ctx, asteroid, false);
                 if (rammed) {
                     ctx->ship.velocity = vec2_scale(ctx->ship.velocity, -ctx->config.ship_ram_bounce_factor);
                     ctx->ship.invulnerable_timer = ctx->config.ship_ram_invulnerability_time;
