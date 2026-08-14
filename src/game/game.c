@@ -433,8 +433,7 @@ static void resolve_collisions(GameContext *ctx) {
             float distance = vec2_length(diff);
             if (distance <= asteroid->radius + ctx->config.ship_radius) {
                 bool rammed = false;
-                float ship_speed = vec2_length(ctx->ship.velocity);
-                if (ship_speed >= ctx->config.ship_ram_min_speed && distance > 1e-6f) {
+                if (distance > 1e-6f) {
                     Vec2 ship_facing = vec2_from_angle(ctx->ship.rotation);
                     Vec2 to_asteroid = vec2_scale(diff, 1.0f / distance);
                     float alignment = vec2_dot(ship_facing, to_asteroid);

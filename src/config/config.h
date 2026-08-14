@@ -16,7 +16,6 @@ typedef struct GameConfig {
     float ship_radius;
     float ship_invulnerability_time;
     float ship_respawn_delay;
-    float ship_ram_min_speed;
     float ship_ram_max_angle_deg;
     float ship_ram_bounce_factor;
     float ship_ram_invulnerability_time;
