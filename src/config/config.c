@@ -18,6 +18,10 @@ void config_set_defaults(GameConfig *config) {
     config->ship_radius = 14.0f;
     config->ship_invulnerability_time = 2.5f;
     config->ship_respawn_delay = 1.5f;
+    config->ship_ram_min_speed = 220.0f;
+    config->ship_ram_max_angle_deg = 20.0f;
+    config->ship_ram_bounce_factor = 0.4f;
+    config->ship_ram_invulnerability_time = 0.6f;
 
     config->bullet_speed = 620.0f;
     config->bullet_lifetime = 0.9f;
@@ -89,6 +93,14 @@ static void apply_key_value(GameConfig *config, const char *key, const char *val
         config->ship_invulnerability_time = strtof(value, NULL);
     } else if (strcmp(key, "ship_respawn_delay") == 0) {
         config->ship_respawn_delay = strtof(value, NULL);
+    } else if (strcmp(key, "ship_ram_min_speed") == 0) {
+        config->ship_ram_min_speed = strtof(value, NULL);
+    } else if (strcmp(key, "ship_ram_max_angle_deg") == 0) {
+        config->ship_ram_max_angle_deg = strtof(value, NULL);
+    } else if (strcmp(key, "ship_ram_bounce_factor") == 0) {
+        config->ship_ram_bounce_factor = strtof(value, NULL);
+    } else if (strcmp(key, "ship_ram_invulnerability_time") == 0) {
+        config->ship_ram_invulnerability_time = strtof(value, NULL);
     } else if (strcmp(key, "bullet_speed") == 0) {
         config->bullet_speed = strtof(value, NULL);
     } else if (strcmp(key, "bullet_lifetime") == 0) {
@@ -188,7 +200,11 @@ bool config_write_default(const char *path, const GameConfig *config) {
     fprintf(file, "ship_friction = %.3f\n", (double)config->ship_friction);
     fprintf(file, "ship_radius = %.2f\n", (double)config->ship_radius);
     fprintf(file, "ship_invulnerability_time = %.2f\n", (double)config->ship_invulnerability_time);
-    fprintf(file, "ship_respawn_delay = %.2f\n\n", (double)config->ship_respawn_delay);
+    fprintf(file, "ship_respawn_delay = %.2f\n", (double)config->ship_respawn_delay);
+    fprintf(file, "ship_ram_min_speed = %.2f\n", (double)config->ship_ram_min_speed);
+    fprintf(file, "ship_ram_max_angle_deg = %.2f\n", (double)config->ship_ram_max_angle_deg);
+    fprintf(file, "ship_ram_bounce_factor = %.3f\n", (double)config->ship_ram_bounce_factor);
+    fprintf(file, "ship_ram_invulnerability_time = %.2f\n\n", (double)config->ship_ram_invulnerability_time);
 
     fprintf(file, "# Weapon\n");
     fprintf(file, "bullet_speed = %.2f\n", (double)config->bullet_speed);

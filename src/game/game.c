@@ -432,8 +432,25 @@ static void resolve_collisions(GameContext *ctx) {
             Vec2 diff = vec2_sub(asteroid->position, ctx->ship.position);
             float distance = vec2_length(diff);
             if (distance <= asteroid->radius + ctx->config.ship_radius) {
+                bool rammed = false;
+                float ship_speed = vec2_length(ctx->ship.velocity);
+                if (ship_speed >= ctx->config.ship_ram_min_speed && distance > 1e-6f) {
+                    Vec2 ship_facing = vec2_from_angle(ctx->ship.rotation);
+                    Vec2 to_asteroid = vec2_scale(diff, 1.0f / distance);
+                    float alignment = vec2_dot(ship_facing, to_asteroid);
+                    float max_angle_rad = ctx->config.ship_ram_max_angle_deg * 0.01745329252f;
+                    if (alignment >= cosf(max_angle_rad)) {
+                        rammed = true;
+                    }
+                }
+
                 destroy_asteroid(ctx, asteroid);
-                destroy_ship(ctx);
+                if (rammed) {
+                    ctx->ship.velocity = vec2_scale(ctx->ship.velocity, -ctx->config.ship_ram_bounce_factor);
+                    ctx->ship.invulnerable_timer = ctx->config.ship_ram_invulnerability_time;
+                } else {
+                    destroy_ship(ctx);
+                }
             }
         }
     }
