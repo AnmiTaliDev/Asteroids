@@ -354,7 +354,7 @@ static void award_score(GameContext *ctx, int amount) {
     }
 }
 
-static void destroy_asteroid(GameContext *ctx, Asteroid *asteroid) {
+static void destroy_asteroid(GameContext *ctx, Asteroid *asteroid, bool spawn_children) {
     GameEventType event_type;
     AsteroidSize child_size;
     bool has_children;
@@ -363,12 +363,12 @@ static void destroy_asteroid(GameContext *ctx, Asteroid *asteroid) {
         case ASTEROID_SIZE_LARGE:
             event_type = GAME_EVENT_ASTEROID_DESTROYED_LARGE;
             child_size = ASTEROID_SIZE_MEDIUM;
-            has_children = true;
+            has_children = spawn_children;
             break;
         case ASTEROID_SIZE_MEDIUM:
             event_type = GAME_EVENT_ASTEROID_DESTROYED_MEDIUM;
             child_size = ASTEROID_SIZE_SMALL;
-            has_children = true;
+            has_children = spawn_children;
             break;
         case ASTEROID_SIZE_SMALL:
         default:
@@ -419,7 +419,7 @@ static void resolve_collisions(GameContext *ctx) {
             float distance = vec2_length(diff);
             if (distance <= asteroid->radius) {
                 bullet->active = false;
-                destroy_asteroid(ctx, asteroid);
+                destroy_asteroid(ctx, asteroid, true);
                 break;
             }
         }
@@ -444,7 +444,7 @@ static void resolve_collisions(GameContext *ctx) {
                     }
                 }
 
-                destroy_asteroid(ctx, asteroid);
+                destroy_asteroid(ctx, asteroid, !rammed);
                 if (rammed) {
                     ctx->ship.velocity = vec2_scale(ctx->ship.velocity, -ctx->config.ship_ram_bounce_factor);
                     ctx->ship.invulnerable_timer = ctx->config.ship_ram_invulnerability_time;
