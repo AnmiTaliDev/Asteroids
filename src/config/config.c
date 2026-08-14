@@ -18,7 +18,7 @@ void config_set_defaults(GameConfig *config) {
     config->ship_radius = 14.0f;
     config->ship_invulnerability_time = 2.5f;
     config->ship_respawn_delay = 1.5f;
-    config->ship_ram_max_angle_deg = 20.0f;
+    config->ship_ram_max_angle_deg = 40.0f;
     config->ship_ram_bounce_factor = 0.4f;
     config->ship_ram_invulnerability_time = 0.6f;
 
