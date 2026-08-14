@@ -356,7 +356,6 @@ int main(int argc, char **argv) {
     Vec2 mouse_position = vec2_make(0.0f, 0.0f);
 
     bool joystick_active = false;
-    bool joystick_owner_is_mouse = false;
     SDL_FingerID joystick_touch_id = 0;
     Vec2 joystick_current_position = vec2_make(0.0f, 0.0f);
     Vec2 joystick_anchor = vec2_make(0.0f, 0.0f);
@@ -378,7 +377,6 @@ int main(int argc, char **argv) {
                 if (!joystick_active && app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING &&
                     point_in_circle_button(position, (UiCircleButton){ingame_joystick_base(game.world_height).center, JOYSTICK_ACTIVATION_RADIUS})) {
                     joystick_active = true;
-                    joystick_owner_is_mouse = false;
                     joystick_touch_id = event.tfinger.fingerID;
                     joystick_current_position = position;
                     joystick_anchor = ingame_joystick_base(game.world_height).center;
@@ -390,11 +388,11 @@ int main(int argc, char **argv) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 Vec2 position = vec2_make(event.tfinger.x, event.tfinger.y);
                 touch_set(active_touches, event.tfinger.fingerID, position);
-                if (joystick_active && !joystick_owner_is_mouse && event.tfinger.fingerID == joystick_touch_id) {
+                if (joystick_active && event.tfinger.fingerID == joystick_touch_id) {
                     joystick_current_position = position;
                 }
             } else if (event.type == SDL_EVENT_FINGER_UP || event.type == SDL_EVENT_FINGER_CANCELED) {
-                if (joystick_active && !joystick_owner_is_mouse && event.tfinger.fingerID == joystick_touch_id) {
+                if (joystick_active && event.tfinger.fingerID == joystick_touch_id) {
                     joystick_active = false;
                 }
                 touch_clear(active_touches, event.tfinger.fingerID);
@@ -402,27 +400,13 @@ int main(int argc, char **argv) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 mouse_down = true;
                 mouse_position = vec2_make(event.button.x, event.button.y);
-                if (!joystick_active && app_state == APP_STATE_GAME && game.phase == GAME_PHASE_PLAYING &&
-                    !point_in_button(mouse_position, ingame_pause_button(game.world_width))) {
-                    joystick_active = true;
-                    joystick_owner_is_mouse = true;
-                    joystick_current_position = mouse_position;
-                    joystick_anchor = mouse_position;
-                } else {
-                    pointer_tap = true;
-                    pointer_tap_position = mouse_position;
-                }
+                pointer_tap = true;
+                pointer_tap_position = mouse_position;
             } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
                 SDL_ConvertEventToRenderCoordinates(renderer.sdl_renderer, &event);
                 mouse_position = vec2_make(event.motion.x, event.motion.y);
-                if (joystick_active && joystick_owner_is_mouse) {
-                    joystick_current_position = mouse_position;
-                }
             } else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
                 mouse_down = false;
-                if (joystick_active && joystick_owner_is_mouse) {
-                    joystick_active = false;
-                }
             } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
                 if (app_state == APP_STATE_SETTINGS) {
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
@@ -510,14 +494,23 @@ int main(int argc, char **argv) {
                 if (!active_touches[i].active) {
                     continue;
                 }
-                if (joystick_active && !joystick_owner_is_mouse && active_touches[i].id == joystick_touch_id) {
+                if (joystick_active && active_touches[i].id == joystick_touch_id) {
                     continue;
                 }
                 input.fire |= point_in_circle_button(active_touches[i].position, fire_button);
             }
 
-            if (mouse_down && !(joystick_active && joystick_owner_is_mouse)) {
+            if (mouse_down) {
                 input.fire |= point_in_circle_button(mouse_position, fire_button);
+
+                if (!point_in_button(mouse_position, ingame_pause_button(game.world_width))) {
+                    Vec2 direction = vec2_sub(mouse_position, game.ship.position);
+                    if (vec2_length(direction) > JOYSTICK_DEADZONE) {
+                        input.has_target_rotation = true;
+                        input.target_rotation = atan2f(direction.y, direction.x);
+                        input.thrust = true;
+                    }
+                }
             }
 
             if (joystick_active) {
@@ -636,15 +629,9 @@ int main(int argc, char **argv) {
                 renderer_draw_text_centered(&renderer, fire.center, 20.0f, "FIRE", COLOR_DIM);
             }
 #else
-            if (game.phase == GAME_PHASE_PLAYING && joystick_active && joystick_owner_is_mouse) {
-                renderer_draw_circle_outline(&renderer, joystick_anchor, JOYSTICK_BASE_RADIUS, COLOR_DIM);
-
-                Vec2 offset = vec2_sub(joystick_current_position, joystick_anchor);
-                float offset_length = vec2_length(offset);
-                if (offset_length > JOYSTICK_BASE_RADIUS) {
-                    offset = vec2_scale(offset, JOYSTICK_BASE_RADIUS / offset_length);
-                }
-                renderer_draw_circle_outline(&renderer, vec2_add(joystick_anchor, offset), JOYSTICK_KNOB_RADIUS, COLOR_WHITE);
+            if (game.phase == GAME_PHASE_PLAYING && mouse_down &&
+                !point_in_button(mouse_position, ingame_pause_button(game.world_width))) {
+                renderer_draw_circle_outline(&renderer, mouse_position, JOYSTICK_KNOB_RADIUS, COLOR_DIM);
             }
 #endif
 
