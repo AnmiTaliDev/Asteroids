@@ -230,7 +230,8 @@ static void draw_settings_screen(Renderer *renderer, float world_width, float wo
         renderer_draw_text_centered(renderer, row.center, 20.0f, lines[i], color);
     }
 
-    Vec2 hint_center = vec2_make(world_width * 0.5f, world_height * 0.5f + 160.0f);
+    UiButton last_row = settings_row_button(SETTINGS_ITEM_COUNT - 1, world_width, world_height);
+    Vec2 hint_center = vec2_make(world_width * 0.5f, last_row.center.y + last_row.half_height + 30.0f);
     renderer_draw_text_centered(renderer, hint_center, 14.0f, "ESC TO RETURN", COLOR_DIM);
 }
 
